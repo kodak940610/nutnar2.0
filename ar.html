@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>AR 植物觀察室｜水生植物探險隊</title>
+<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.7/aframe/build/aframe-ar.js"></script>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:system-ui,"Noto Sans TC",sans-serif;background:#0b251b}
+#hud{position:fixed;z-index:20;top:10px;left:10px;right:10px;background:#fffffff0;border-radius:16px;padding:12px 15px;color:#183b2b;box-shadow:0 4px 18px #0002}
+#title{font-weight:900;font-size:18px}#desc{font-size:13px;line-height:1.5;margin-top:3px;color:#4e6b59}
+#status{font-size:13px;margin-top:7px;color:#176342;font-weight:700}
+#bottom{position:fixed;z-index:20;bottom:14px;left:10px;right:10px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.ctrl{border:0;border-radius:99px;padding:10px 14px;background:#fff;color:#174d37;font-weight:800;box-shadow:0 3px 12px #0002}
+#detail{position:fixed;z-index:25;bottom:74px;left:12px;right:12px;max-width:540px;margin:auto;background:#ffffffed;border-radius:16px;padding:14px 16px;color:#183b2b;display:none}
+#detail b{display:block;margin-bottom:4px}#back{color:#176342}
+#hint{font-size:12px;color:#718579}
+</style></head><body>
+<div id="hud"><div id="title">水生植物 AR 觀察室</div><div id="desc">請允許相機權限，並將鏡頭對準共用 AR 標記卡。</div><div id="status">相機啟動中…</div><div id="hint">看到模型後，可點擊模型上的構造標記閱讀說明。</div></div>
+<div id="detail"><b id="detailTitle">植物構造</b><span id="detailText"></span></div>
+<div id="bottom"><button class="ctrl" id="rotate">↻ 自動旋轉：開</button><button class="ctrl" id="reset">重設視角</button><a class="ctrl" id="back" href="./">返回學習平台</a></div>
+<a-scene embedded vr-mode-ui="enabled:false" renderer="logarithmicDepthBuffer:true;antialias:true;colorManagement:true" arjs="sourceType:webcam;debugUIEnabled:false;trackingMethod:best;patternRatio:0.5;" cursor="rayOrigin:mouse" raycaster="objects:.clickable">
+<a-assets></a-assets>
+<a-marker id="marker" type="pattern" url="assets/markers/shared-marker.patt" emitevents="true" smooth="true" smooth-count="5" smooth-tolerance="0.01">
+  <a-entity id="modelRoot" rotation="0 0 0">
+    <a-entity id="plantModel"></a-entity>
+  </a-entity>
+</a-marker>
+<a-entity camera></a-entity>
+</a-scene>
+<script>
+const plants={
+emergent:{title:"挺水性植物｜荷花",desc:"根固定在水底，葉片或花挺出水面。",parts:[
+["根部","根固定在水底，幫助植物吸收水分與養分。"],
+["莖","挺水性植物的莖支撐葉片或花朵，使它們伸出水面。"],
+["葉片","葉片通常伸出水面，能接受陽光進行光合作用。"],
+["花","花朵可挺出水面，方便授粉。"]]},
+"floating-leaf":{title:"浮葉性植物｜睡蓮",desc:"根固定在水底，葉片平貼或漂浮於水面。",parts:[
+["根部","根固定在水底，吸收水分與養分。"],
+["長葉柄","葉柄連接根莖與葉片，將葉片支撐到水面。"],
+["浮葉","葉片平貼水面，能接收陽光。"],
+["花","花通常在水面附近或水面上開放。"]]},
+submerged:{title:"沉水性植物｜金魚藻",desc:"植物大部分或全部沉在水中生長。",parts:[
+["莖","柔軟的莖在水中伸展。"],
+["細裂葉","細裂葉增加與水接觸的面積，有利於水中生活。"],
+["植株","沉水性植物大部分或全部位於水面下。"]]},
+"free-floating":{title:"漂浮性植物｜布袋蓮",desc:"植物漂浮水面，根不固定在水底。",parts:[
+["根","根垂掛在水中，通常不固定於水底。"],
+["葉柄","葉柄或葉基部可具有膨大構造，幫助植物漂浮。"],
+["葉片","葉片位於水面上，接受陽光。"]]}
+};
+const q=new URLSearchParams(location.search),key=q.get("plant")||"emergent",item=plants[key]||plants.emergent;
+document.querySelector("#title").textContent=item.title;document.querySelector("#desc").textContent=item.desc;
+const root=document.querySelector("#plantModel"),$=id=>document.getElementById(id);
+function node(tag,attrs,parent=root){let n=document.createElement(tag);Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,v));parent.appendChild(n);return n}
+function clickable(tag,attrs,title,detail){let n=node(tag,{...attrs,class:"clickable"});n.dataset.title=title;n.dataset.detail=detail;return n}
+function sphere(x,y,z,sx,sy,sz,color,title,detail){return clickable("a-sphere",{position:`${x} ${y} ${z}`,scale:`${sx} ${sy} ${sz}`,color,material:"roughness:0.82"},title,detail)}
+function cylinder(x,y,z,r,h,color,title,detail,rot="0 0 0"){return clickable("a-cylinder",{position:`${x} ${y} ${z}`,radius:r,height:h,color,rotation:rot,material:"roughness:0.9"},title,detail)}
+function leaf(x,y,z,rx,ry,rz,color,title,detail){return sphere(x,y,z,rx,ry,rz,color,title,detail)}
+const p=item.parts;
+if(key==="emergent"){
+cylinder(0,.35,0,.035,.8,"#287b4c",p[1][0],p[1][1]);
+leaf(-.22,.78,0,.28,.055,.17,"#4d9c59",p[2][0],p[2][1]);leaf(.22,.9,0,.28,.055,.17,"#3e8d50",p[2][0],p[2][1]);
+for(let i=0;i<6;i++){let a=i*Math.PI/3;sphere(Math.cos(a)*.09,1.13,Math.sin(a)*.09,.12,.06,.07,"#e98da5",p[3][0],p[3][1]);}
+sphere(0,1.14,0,.07,.07,.07,"#f5cf56",p[3][0],p[3][1]);
+cylinder(0,-.1,0,.25,.12,"#8b6b45",p[0][0],p[0][1]);
+}else if(key==="floating-leaf"){
+cylinder(0,.18,0,.025,.55,"#398451",p[1][0],p[1][1]);
+leaf(0,.48,0,.38,.045,.3,"#419d5b",p[2][0],p[2][1]);
+for(let i=0;i<6;i++){let a=i*Math.PI/3;sphere(Math.cos(a)*.12,.68,Math.sin(a)*.12,.09,.05,.07,"#e98da5",p[3][0],p[3][1]);}
+cylinder(0,-.18,0,.09,.35,"#8b6b45",p[0][0],p[0][1]);
+}else if(key==="submerged"){
+for(let i=-2;i<=2;i++){cylinder(i*.10,.1,0,.018,.85,"#2d8958",p[0][0],p[0][1],`0 0 ${i*9}`);for(let j=0;j<5;j++){let y=-.22+j*.16;leaf(i*.1-.08,y,0,.12,.025,.035,"#4da96b",p[1][0],p[1][1]);leaf(i*.1+.08,y+.04,0,.12,.025,.035,"#348e59",p[1][0],p[1][1]);}}
+sphere(0,.03,0,.28,.42,.22,"#2d8958",p[2][0],p[2][1]);
+}else{
+sphere(0,.48,0,.34,.13,.28,"#67b66c",p[2][0],p[2][1]);
+for(let i=-2;i<=2;i++)cylinder(i*.09,.05,0,.009,.65,"#b69b70",p[0][0],p[0][1]);
+for(let i=0;i<5;i++){let a=i*1.256;leaf(Math.cos(a)*.20,.65,Math.sin(a)*.17,.18,.055,.14,"#4ca665",p[2][0],p[2][1]);}
+cylinder(0,.5,0,.10,.22,"#8bc5a0",p[1][0],p[1][1]);
+}
+let logged=false;
+function logObservation(event,note){const url=localStorage.getItem("aquaGasUrl");let student={};try{student=JSON.parse(localStorage.getItem("aquaProfile")||"{}")}catch(e){}if(url&&student.name){fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({type:"observation",student,plant:key,plantName:item.title,event,note,timestamp:new Date().toISOString()})}).catch(()=>{});}}
+document.querySelector("#marker").addEventListener("markerFound",()=>{$("status").textContent="✓ 已辨識標記！點擊植物模型查看構造。";if(!logged){logObservation("markerFound","完成 AR 標記辨識");logged=true;}});
+document.querySelector("#marker").addEventListener("markerLost",()=>{$("status").textContent="尚未辨識標記，請調整距離、角度與光線。";});
+document.querySelector("a-scene").addEventListener("click",e=>{let target=e.target.closest?.(".clickable");if(!target)return;$("detailTitle").textContent=target.dataset.title||"植物構造";$("detailText").textContent=target.dataset.detail||"";$("detail").style.display="block";logObservation("partClicked","點擊構造："+(target.dataset.title||""));});
+let rotating=true,angle=0;const model=document.querySelector("#modelRoot");
+$("rotate").onclick=()=>{rotating=!rotating;$("rotate").textContent="↻ 自動旋轉："+(rotating?"開":"關")};
+$("reset").onclick=()=>{angle=0;model.setAttribute("rotation","0 0 0");$("detail").style.display="none"};
+let last=0;function animate(t){if(rotating&&t-last>35){angle=(angle+.5)%360;model.setAttribute("rotation",`0 ${angle} 0`);last=t}requestAnimationFrame(animate)}requestAnimationFrame(animate);
+window.addEventListener("load",()=>setTimeout(()=>{$("status").textContent="請將鏡頭對準共用 AR 標記卡。";},2500));
+</script></body></html>
