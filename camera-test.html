@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>水生植物探險隊｜iPhone 相機測試</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#10251c;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:18px}
+h1{font-size:22px}p{line-height:1.6}.panel{background:#fff;color:#183b2b;border-radius:16px;padding:16px;margin:14px 0}
+button{border:0;border-radius:999px;padding:13px 20px;background:#19734b;color:white;font-size:16px;font-weight:700}
+video{display:block;width:100%;max-height:65vh;background:#000;border-radius:12px;object-fit:cover;margin-top:14px}
+#status{font-weight:700;overflow-wrap:anywhere}.small{font-size:13px;color:#d7e5dc}
+</style></head>
+<body>
+<h1>📷 iPhone 攝影機獨立測試</h1>
+<p>請按下方按鈕啟動攝影機。這個頁面不使用 AR.js，只測試 Safari 能否顯示即時鏡頭畫面。</p>
+<div class="panel">
+<button id="start">啟動後鏡頭</button>
+<button id="front" style="background:#526b5c">切換前鏡頭</button>
+<p id="status">尚未啟動</p>
+<video id="preview" autoplay muted playsinline webkit-playsinline></video>
+</div>
+<p class="small">若成功，畫面會顯示即時攝影機影像。測試完成後可關閉此頁。</p>
+<script>
+const video=document.getElementById('preview');
+const status=document.getElementById('status');
+let stream=null, facing='environment';
+async function startCamera(){
+ try{
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){throw new Error('此瀏覽器不支援 getUserMedia，或目前頁面不是 HTTPS。')}
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  status.textContent='正在要求攝影機…';
+  video.setAttribute('playsinline','');video.setAttribute('webkit-playsinline','');video.muted=true;video.autoplay=true;
+  stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:facing},width:{ideal:1280},height:{ideal:720}}});
+  video.srcObject=stream;
+  await new Promise((resolve,reject)=>{video.onloadedmetadata=resolve;setTimeout(()=>reject(new Error('等待攝影機影像逾時，請重新按啟動。')),10000)});
+  await video.play();
+  const track=stream.getVideoTracks()[0];
+  status.textContent='成功：攝影機已啟動。'+(track?(' 狀態：'+track.readyState+'；鏡頭：'+(track.label||'已連線')):'');
+ }catch(e){status.textContent='啟動失敗：'+(e.name||'Error')+' — '+e.message;}
+}
+document.getElementById('start').addEventListener('click',startCamera);
+document.getElementById('front').addEventListener('click',()=>{facing=facing==='environment'?'user':'environment';startCamera()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&stream&&stream.active){video.srcObject=null;setTimeout(async()=>{video.srcObject=stream;try{await video.play()}catch(e){}},100)}});
+</script></body></html>
